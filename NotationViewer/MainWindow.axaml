@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:local="clr-namespace:NotationViewer"
+        x:Class="NotationViewer.MainWindow"
+        Title="NotationViewer">
+
+       <Window.Resources>
+            <local:ContentConverter x:Key="TexConverter" />
+       </Window.Resources>
+        
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Width="220">
+                    <Button x:Name="hyperlink_button" 
+                        Foreground="Blue" 
+                        Background="WhiteSmoke"
+                        Click="OpenBrowser_Click"
+                        Width="180">
+                        KaTeX previewer
+                    </Button>
+
+                </StackPanel>
+
+                <!-- controls:NotationCanvas x:Name="canvas" 
+                    Height="400"
+                    Width="400"                
+                    DockPanel.Dock="Top" /  -->
+
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Image x:Name="img_control"  Height="70" Width="420" />
+
+                    <Image 
+                        Width="420" 
+                        Height="70" 
+                        Source="{Binding #input_box.Text, Converter={StaticResource TexConverter}}"
+                        />
+                
+                
+                    <TextBlock x:Name="latex_str_block"
+                        Text="original string placeholder"
+                        Margin="0,0,20,0"
+                        Height="40" />
+
+                    <TextBox x:Name="input_box" 
+                        Height="300"
+                        Watermark="Insert latex string" />
+
+                </StackPanel>
+                    
+            </DockPanel>
+</Window>
