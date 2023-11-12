@@ -175,6 +175,28 @@ public class Lexer
 		return source[start..pos];
 	}
 
+	///<summary>Returns the substring upto the next keyword</summary>
+	string NextWord()
+	{
+		var len = source.Length - pos;
+		var slice = source.AsSpan(pos, len);
+		
+		for(int i = 0; i < slice.Length; i++) {
+			switch(slice[i]) {
+				case ' ':
+				case '_':
+				case '^':
+				case '{': {
+					pos += i;
+					return slice[0..i].ToString();
+				}				
+				default: continue;
+			}			
+		}
+		pos += len;
+		return slice[0..len].ToString();
+	}
+
 	bool MatchSequence(IEnumerable<string> seq, out string key) {
 		foreach(var str in seq) {
 			var a = pos;
@@ -229,6 +251,7 @@ public class Lexer
 			case '+':
 			case '-':
 			case '*':
+			case '=':
 			case '/': {
 				Advance();
 				return new Token(pos, src[start..pos], TokenId.MathOperator);
@@ -283,155 +306,79 @@ public class Lexer
 						Advance();
 						return new Token(pos, "\\}", TokenId.Close);
 					}
-
 					default: break;
-				}				
-			}break;
-			
-						
+				}
+
+				var next_word = NextWord();
+				// Console.WriteLine($"next keyword: -{next_word}-");
+
+				if(diacriticals.ContainsKey(next_word)) {
+					var _diacritical = next_word;
+					var expr = diacriticals[_diacritical];
+					var expr_t = expr.GetType();
+
+					if(expr_t.IsAssignableTo(typeof(EOver))) {
+						return new Token(pos, _diacritical, TokenId.Over);				
+					}
+					else if(expr_t.IsAssignableTo(typeof(EUnder))) {
+						return new Token(pos, _diacritical, TokenId.Under);				
+					}
+					else {
+						throw new InvalidCastException();
+					}			
+				}
+
+				if(scalers.ContainsKey(next_word)) {
+					var _scaler = next_word;
+					return new Token(pos, _scaler, TokenId.Scaled);
+				}
+
+				if(enclosures.ContainsKey(next_word)) {
+					var _enclosure = next_word;
+					var expr = (ESymbol)enclosures[_enclosure].Invoke();
+					var symbol_type = expr.symbol_type;
+
+					var id = symbol_type switch {
+						TeXSymbolType.Open => TokenId.Open,
+						TeXSymbolType.Close => TokenId.Close,
+						_ => throw new ArgumentException(),
+					};			
+					return new Token(pos, _enclosure, id);
+				}
+
+				if(binaryOps.Contains(next_word)) {
+					var _binaryop = next_word;
+					return new Token(pos, _binaryop, TokenId.Binary);					
+				}
+
+				if(symbols.ContainsKey(next_word)) {
+					var _symbol = next_word;
+					var expr = symbols[_symbol].Invoke();
+					var expr_t = expr.GetType();
+
+					if(expr_t.IsAssignableTo(typeof(ESymbol))) {
+						return new Token(pos, _symbol, TokenId.Symbol);
+					}
+					else if(expr_t.IsAssignableTo(typeof(ESpace))) {
+						return new Token(pos, _symbol, TokenId.Space);
+					}
+					else if(expr_t.IsAssignableTo(typeof(EMathOperator))) {
+						return new Token(pos, _symbol, TokenId.MathOperator);
+					}
+					else {
+						throw new InvalidCastException();
+					}
+				}
+			}break;						
+
 			default: {
-				
-			}break;
-		}
-
-		
-		if(MatchSequence(diacriticals.Keys, out string _diacritical)) {
-			var expr = diacriticals[_diacritical];
-			var expr_t = expr.GetType();
-
-			if(expr_t.IsAssignableTo(typeof(EOver))) {
-				return new Token(pos, _diacritical, TokenId.Over);				
-			}
-			else if(expr_t.IsAssignableTo(typeof(EUnder))) {
-				return new Token(pos, _diacritical, TokenId.Under);				
-			}
-			else {
-				throw new InvalidCastException();
+				Advance();
+				return new Token(pos, src[start..pos], TokenId.Bad);				
 			}
 		}
-
-		if(MatchSequence(scalers.Keys, out string _scaler)) {
-			// var expr = scalers[_scaler];
-			// var expr_t = expr.GetType();
-			
-			return new Token(pos, _scaler, TokenId.Scaled);
-		}
-
-		if(MatchSequence(enclosures.Keys, out string _enclosure)) {
-			var expr = (ESymbol)enclosures[_enclosure].Invoke();
-			var symbol_type = expr.symbol_type;
-
-			var id = symbol_type switch {
-				TeXSymbolType.Open => TokenId.Open,
-				TeXSymbolType.Close => TokenId.Close,
-				_ => throw new ArgumentException(),
-			};
-			
-			return new Token(pos, _enclosure, id);
-		}
-
-		if(MatchSequence(binaryOps, out string _binaryop)) {
-			return new Token(pos, _binaryop, TokenId.Binary);			
-		}
-
-		if(MatchSequence(symbols.Keys, out string _symbol)) {
-			var expr = symbols[_symbol].Invoke();
-			var expr_t = expr.GetType();
-
-			if(expr_t.IsAssignableTo(typeof(ESymbol))) {
-				return new Token(pos, _symbol, TokenId.Symbol);
-			}
-			else if(expr_t.IsAssignableTo(typeof(ESpace))) {
-				return new Token(pos, _symbol, TokenId.Space);
-			}
-			else if(expr_t.IsAssignableTo(typeof(EMathOperator))) {
-				return new Token(pos, _symbol, TokenId.MathOperator);
-			}
-			else {
-				throw new InvalidCastException();
-			}
-		}
-
-		// switch(Current)
-		// {
-		// 	case '+': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Operator);	
-		// 	}				
-		// 	case '-': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Operator);	
-		// 	}				
-		// 	case '/': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Operator);	
-		// 	}				
-		// 	case '=': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Operator);	
-		// 	}				
-		// 	case '^': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Accent);	
-		// 	}				
-		// 	case '_': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Underscore);	
-		// 	}				
-		// 	case '{': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.LeftBrace);	
-		// 	}				
-		// 	case '}': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.RightBrace);	
-		// 	}				
-		// 	case '(': 
-		// 	case '[': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.LeftParen);	
-		// 	}				
-		// 	case ')': 
-		// 	case ']': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.RightParen);	
-		// 	}				
-
-		// 	case '|': {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Pipe);	
-		// 	}			
-		// 	case '\\': {
-		// 		// next keyword
-		// 		var next_keyword = NextKeyword();				
-				
-		// 		if(diacriticals.ContainsKey(next_keyword)) {
-		// 			return new Token(pos, next_keyword, TokenId.Diacritical);
-		// 		}
-
-		// 		if(scalers.ContainsKey(next_keyword))
-		// 			return new Token(pos, next_keyword, TokenId.Scaler);
-
-		// 		if(enclosures.ContainsKey(next_keyword)) {
-		// 			return new Token(pos, next_keyword, TokenId.Enclosure);
-		// 		}
-
-		// 		if(binaryOps.Contains(next_keyword))
-		// 			return new Token(pos, next_keyword, TokenId.BinaryOp);
-
-		// 		if(symbols.ContainsKey(next_keyword)) {
-		// 			return new Token(pos, next_keyword, TokenId.Symbol);
-		// 		}
-		// 	}break;
-
-		// 	default: {
-		// 		Advance();
-		// 		return new Token(pos, src[start..pos], TokenId.Bad);
-		// 	}
-		// }
 
 		Advance();
-		return new Token(pos, src[start..pos], TokenId.Bad);
+		return new Token(pos, src[start..pos], TokenId.Bad);			
 	}
 
 

@@ -12,7 +12,8 @@ class Program
 {
 	public static void Main()
 	{
-		var str = "f(x) = 4.3 \\cdot x^{3A_z} \\cdot \\Gamma - N_A + \\frac{A + D}{B - G} + (A - B_\\gamma)";
+		// var str = "f(x) = 4.3 \\cdot x^{3A_z} \\cdot \\Gamma - N_A + \\frac{A + D}{B - G} + (A - B_\\gamma)";
+		var str = "f(x) = \\int _a ^b \\frac{(A + B - 94.3)}{e^{-RT} \\cdot 9.43 x} dx";
 		var lexer = new Lexer(str);
 
 		Console.WriteLine(char.IsWhiteSpace('\0'));
