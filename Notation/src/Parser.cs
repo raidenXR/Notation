@@ -70,8 +70,10 @@ public class Parser
 			// WHEN ParseExpr() recursively it moves forward, while the foreach token in tokens enumerators
 			// indexes to previous token.
 			
-			// expressions.Add(ParseExpr());
-			yield return ParseExpr();
+			var expr = ParseExpr();
+			// special case, if last token is groupClose it cannot be parsed, and iteratation stops
+			if(Current.Id == TokenId.Eof) yield break;
+			yield return expr;
 		}
 	}
 
@@ -100,7 +102,9 @@ public class Parser
 
 	Token Peek(int offset) {
 		var index = pos + offset;
-		return (index >= tokens.Count) ? tokens.Last() : tokens[index];
+		var last = tokens.Last();
+		// last = last.Id == TokenId.GroupedClose ? new Token(tokens.Count, "", TokenId.Eof) : last;
+		return (index >= tokens.Count) ? last : tokens[index];
 	}
 
 	Token Current => Peek(0);
@@ -143,13 +147,18 @@ public class Parser
 			TokenId.Space      => ParseSpace(),
 			TokenId.MathOperator => ParseMathOperator(),
 			TokenId.GroupedOpen  => ParseGrouped(),
-			// TokenId.GroupedClose => 
+			TokenId.GroupedClose => new EEof(), 
 			TokenId.Open       => ParseEnclosure(),
 			TokenId.Close      => ParseEnclosure(),
 			TokenId.Up         => ParseUp(),
 			TokenId.Down       => ParseDown(),
 			_  => throw new ArgumentException($"does not implement {Current.Id}: {Current.Str}"), 
 		};
+	}
+
+	Expr ParseGroupClosed() {
+		NextToken();
+		return ParseExpr();
 	}
 
 	Expr ParseNumber() {
@@ -263,7 +272,7 @@ public class Parser
 			// Console.WriteLine($"    --{Current.Id}, {Current.Str}");
 			yield return ParseExpr();
 		}
-		NextToken();
+		NextToken();    // ignore }
 	}
 
 	Expr ParseGrouped() {

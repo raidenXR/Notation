@@ -12,52 +12,52 @@ class Program
 {
 	public static void Main()
 	{
-		// var str = "f(x) = 4.3 \\cdot x^{3A_z} \\cdot \\Gamma - N_A + \\frac{A + D}{B - G} + (A - B_\\gamma)";
-		var str = "f(x) = \\int _a ^b \\frac{(A + B - 94.3)}{e^{-RT} \\cdot 9.43 x} dx";
-		var lexer = new Lexer(str);
 
-		Console.WriteLine(char.IsWhiteSpace('\0'));
-
-		var str0 = "some string111";
-		Console.WriteLine(str0[2..str0.Length]);
-
-		foreach(var token in lexer) {
-		    if(token.Id == TokenId.Bad || token.Id == TokenId.Whitespace) continue;
-
-		    Console.WriteLine("{0},  {1}", token.Str, token.Id);
-		}
-
-		var parser = new Parser(str);
-        var hlist = parser.Parse().ToList();
-        Console.WriteLine($"target_str: {str}");
-
-		// parser.Print();
-
+		var functions = new string[] {
+		    "g(x) = \\int_a^b \\frac{1}{2} x^2 dx",
+			"f(x) = 4.3 \\cdot x^{3A_z} \\cdot \\Gamma - N_A + \\frac{A + D}{B - G} + (A - B_{\\gamma})",
+			"f(x) = \\int _a ^b \\frac{(A + B - 94.3)}{e^{-RT} \\cdot 9.43 x} dx",
+			"f(x) = \\int _a ^b \\frac{(A + B - 94.3)}{e^{-RT \\cdot \\frac{K_l}{N_t}} \\cdot 9.43 x} dx",
+			"\\frac{(A-B)}{(e^{-RT})} + \\frac{1}{2}",		
+		    "f(x) = (A_n + B_{n + 1}) - \\frac{1}{2} x^2 \\cdot \\gamma",
+		    "g(x) = E^{-RT} + 4.213 T - 6.422 T - \\gamma^{-2}",
+		    "z(x) = 3.2343 e^{-1.2} + 8.5",
+		    "a(x) = \\frac{Z - 9.2 + A^2}{e^{0.8}} + \\frac{x^2 + 2 * x + 1}{x^3 - 1}",
+		};
 
 		using var ms = new MemoryStream(8 * 1024);
-		// var dt0 = Stopwatch.GetTimestamp();
+		var dt0 = Stopwatch.GetTimestamp();
+		int i = 0;
 		
-		// for(int i = 0; i < 1000; i++) {
-		// 	 ms.Position = 0;
-		// 	 using var renderer = new TeXRenderer(hlist, 20f);
-		//	 renderer.TypesetRootHList(new Vector2(30, 40));
-		// 	 // renderer.Print();
-		//	 renderer.Render(ms);			
-		// }
+		foreach(var str in functions) {
+			var lexer = new Lexer(str);
 
-		// var dt1 = Stopwatch.GetTimestamp();
-		// var dt = (float)(dt1 - dt0) / 1000f;
-		// Console.WriteLine("elapsed time: {0}ms", dt / 1000f);
+			foreach(var token in lexer) {
+			    if(token.Id == TokenId.Bad || token.Id == TokenId.Whitespace) continue;
 
-		// using var renderer = new TeXRenderer(hlist, 20f);
-		// renderer.TypesetRootHList(new Vector2(30, 30));
-		using var renderer = new TeXRenderer();
-		renderer.TypesetRootHList(hlist, new Vector2(30f, 30f));
-		renderer.Print();
-		renderer.Render(ms);
-		using var fs = File.Create("test image.png");
-		ms.Position = 0;
-		ms.CopyTo(fs);
-  		Console.WriteLine("done!");
+			    Console.WriteLine("{0},  {1}", token.Str, token.Id);
+			}
+			Console.WriteLine(str);
+
+			var parser = new Parser(str);
+	        var hlist = parser.Parse().ToList();
+	        Console.WriteLine($"target_str: {str}");			
+			Console.WriteLine("\n");
+			
+			using var fs = File.Create($"test image{i++}.png");
+			using var renderer = new TeXRenderer();
+			renderer.TypesetRootHList(hlist, new Vector2(30f, 30f));
+			renderer.Print();
+			ms.Position = 0;
+			renderer.Render(ms);
+			
+			ms.Position = 0;
+			ms.CopyTo(fs);
+		}
+
+		// parser.Print();
+  		Console.WriteLine("done!");		
+		var dt1 = Stopwatch.GetTimestamp();
+		Console.WriteLine($"dt: {(float)(dt1 - dt0) / (1000f * functions.Length)}ms");
 	}
 } 

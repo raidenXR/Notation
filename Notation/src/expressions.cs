@@ -33,6 +33,7 @@ public abstract class Expr {
 	public float Scale = 1f;
 	public HBox box;
 	public Glue glue;
+	public Token token;
 
 	// public IEnumerable<Expr>? Children {
 	// 	get {
@@ -188,6 +189,12 @@ public abstract class Expr {
 	// public Enumerator GetEnumerator() {
 	// 	return new Enumerator(this);
 	// }
+}
+
+public class EEof : Expr {
+	public EEof() {
+		token = new Token(0, "", TokenId.Eof);	
+	}	
 }
 
 public class ENumber : Expr {

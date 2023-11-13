@@ -444,8 +444,9 @@ public class TeXRenderer : IDisposable
 					var lower = (EGrouped)(binary.rhs);
 					RenderHList(canvas, lower.exprs);
 
-					var p0 = new SKPoint{X = binary.X, Y = binary.Y  - 3f};
-					var p1 = new SKPoint{X = binary.X + binary.W, Y = binary.Y - 3f};
+					var y = (binary.Scale * font_size) / 4f;
+					var p0 = new SKPoint{X = binary.X, Y = binary.Y  - y};
+					var p1 = new SKPoint{X = binary.X + binary.W, Y = binary.Y - y};
 					canvas.DrawLine(p0, p1, paint);
 				}break;
 				

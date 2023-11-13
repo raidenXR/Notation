@@ -186,6 +186,9 @@ public class Lexer
 				case ' ':
 				case '_':
 				case '^':
+				case '(':
+				case ')':
+				case '}':
 				case '{': {
 					pos += i;
 					return slice[0..i].ToString();
@@ -310,7 +313,7 @@ public class Lexer
 				}
 
 				var next_word = NextWord();
-				// Console.WriteLine($"next keyword: -{next_word}-");
+				Console.WriteLine($"next keyword: -{next_word}-");
 
 				if(diacriticals.ContainsKey(next_word)) {
 					var _diacritical = next_word;
