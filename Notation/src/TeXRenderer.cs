@@ -455,13 +455,13 @@ public class TeXRenderer : IDisposable
 				}break;
 				
 				case EUp up: {
-					Console.WriteLine("up.up = {0}", up.up.Str);
+					// Console.WriteLine("up.up = {0}", up.up.Str);
 					if(up.up is EGrouped group)	RenderHList(canvas, group.exprs);
 					else RenderAtom(canvas, up.up);					
 				}break;
 				 				
 				case EDown down: {
-					Console.WriteLine("down.down = {0}", down.down.Str);
+					// Console.WriteLine("down.down = {0}", down.down.Str);
 					if(down.down is EGrouped group) RenderHList(canvas, group.exprs);
 					else RenderAtom(canvas, down.down);
 				}break;			

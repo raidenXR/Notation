@@ -313,7 +313,7 @@ public class Lexer
 				}
 
 				var next_word = NextWord();
-				Console.WriteLine($"next keyword: -{next_word}-");
+				// Console.WriteLine($"next keyword: -{next_word}-");
 
 				if(diacriticals.ContainsKey(next_word)) {
 					var _diacritical = next_word;
