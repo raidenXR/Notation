@@ -1,5 +1,5 @@
 using System;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.IO;
 using SkiaSharp;
@@ -27,16 +27,29 @@ public readonly struct Origin
 
 public class TeXRenderer : IDisposable
 {	
-	readonly string tex_str;
 	readonly float  font_size;
 	bool is_typeset;
 	bool is_disposed;
 
 	SKTypeface typeface;
 	SKPaint paint;
-	SKSurface surface;
 
 	static readonly List<SKTypeface> typefaces = new(20);
+
+	static readonly string[] names = new string[]{
+		"Main-Regular",	
+		"AMS-Regular",
+		"Caligraphic-Regular",		
+		"Fraktur-Regular",		
+		"SansSerif-Regular",		
+		"Script-Regular",		
+		"Math-Italic",		
+		"Size1-Regular",		
+		"Size2-Regular",		
+		"Size3-Regular",		
+		"Size4-Regular",		
+		"Typewritter-Regular",				
+	};
 	
 	static readonly string[] fontnames = new string[]{
 		"fonts/KaTeX_Main-Regular.ttf",	
@@ -53,16 +66,16 @@ public class TeXRenderer : IDisposable
 		"fonts/KaTeX_Typewritter-Regular.ttf",		
 	};
 
-	Expr? ast_root = null;
-	List<Expr>? root_list = null;
+	// Expr? ast_root = null;
+	// List<Expr>? root_list = null;
 
-	public List<Expr>? RootList 
-	{
-		get => root_list;
-		set {
-			root_list = value;
-		}
-	}
+	// public List<Expr>? RootList 
+	// {
+	// 	get => root_list;
+	// 	set {
+	// 		root_list = value;
+	// 	}
+	// }
 
 	float default_size;
 
@@ -74,7 +87,7 @@ public class TeXRenderer : IDisposable
 		}		
 	}
 
-	public TeXRenderer(float fontSize = 20f)
+	public TeXRenderer(float fontSize)
 	{
 		default_size = fontSize;
 		font_size = default_size;
@@ -85,46 +98,6 @@ public class TeXRenderer : IDisposable
 			TextSize = default_size,
 			Color = SKColors.Black,
 	    };
-		var info = new SKImageInfo(420, 100);
-		surface = SKSurface.Create(info);		
-	}
-
-	public TeXRenderer(List<Expr> root_list, float default_size) 
-	{
-		font_size = default_size;
-		tex_str = "Not A tex_str";
-		this.root_list = root_list;
-		this.default_size = default_size;
-
-		// typeface = SKTypeface.FromFile("fonts/KaTeX_Main-Regular.ttf") ?? throw new FileNotFoundException();
-		typeface = typefaces.First();
-		
-	    paint = new SKPaint	{
-			Typeface = typeface,
-	        IsAntialias = true,
-			TextSize = default_size,
-			Color = SKColors.Black,
-	    };
-		var info = new SKImageInfo(420, 100);
-		surface = SKSurface.Create(info); 
-	}
-	
-	public TeXRenderer(string tex, float default_size)
-	{
-		tex_str = tex;
-		font_size = default_size;
-		this.default_size = default_size;
-		// typeface = SKTypeface.FromFile("fonts/KaTeX_Main-Regular.ttf") ?? throw new FileNotFoundException();
-		typeface = typefaces.First();
-		
-	    paint = new SKPaint	{
-			Typeface = typeface,
-	        IsAntialias = true,
-			TextSize = default_size,
-			Color = SKColors.Black,
-	    };
-		var info = new SKImageInfo(420, 100);
-		surface = SKSurface.Create(info); 
 	}
 
 	~TeXRenderer()
@@ -137,80 +110,69 @@ public class TeXRenderer : IDisposable
 		if(!is_disposed) {
 			// typeface.Dispose();
 			paint.Dispose();
-			surface.Dispose();
 		}
 		is_disposed = true;
 	}
 
-	private void print_atom(Expr node, string padding) {
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static SKPoint Transform(float x, float y, HBox size)
+	{
+		var _x = Math.Abs(size.X) + x;
+		var _y = (size.H - size.Y) - y;
+
+		return new SKPoint(_x, _y);
+	}
+
+	private void print_atom(Expr node, string padding, HBox size) {
 		Assert(node.IsLeafNode());		
 		
-		var pos_str = $"{node.GetType(), -20},   pos: X= {node.X, -9}, Y= {node.Y, -9}, W= {node.W, - 9} scale: {node.Scale}";
+		var pt = Transform(node.X, node.Y, size);
+		// var pos_str = $"{node.GetType(), -20},   pos: X= {node.X, -9}, Y= {node.Y, -9}, W= {node.W, - 9} scale: {node.Scale}";
+		var pos_str = $"{node.GetType(), -20},   pos: X= {pt.X, -9}, Y= {pt.Y, -9}, W= {node.W, - 9} scale: {node.Scale}";
 		Console.WriteLine($"{padding + node.Str, -5}" +  pos_str);
 	}
 
-	private void print(List<Expr> nodes, string padding) {
+	private void print(List<Expr> nodes, string padding, HBox size) {
 		foreach(var node in nodes) {
 			switch(node) {
 				case EBinary binary: {
 					var upper = (EGrouped)(binary.lhs);
-					print(upper.exprs, "--" + padding);
+					print(upper.exprs, "--" + padding, size);
 				
 					var lower = (EGrouped)(binary.rhs);
-					print(lower.exprs, "--" + padding);
+					print(lower.exprs, "--" + padding, size);
 				}break;
 				
 				case EGrouped group: {
-					print(group.exprs, "--" + padding);
+					print(group.exprs, "--" + padding, size);
 				}break;
 
 				case EUp up: {
-					if(up.up is EGrouped g) print(g.exprs, "--" + padding);
-					else print_atom(up.up, padding);
+					if(up.up is EGrouped g) print(g.exprs, "--" + padding, size);
+					else print_atom(up.up, padding, size);
 				}break;
 
 				case EDown down: {
-					if(down.down is EGrouped g) print(g.exprs, "--" + padding);
-					else print_atom(down.down, padding);
+					if(down.down is EGrouped g) print(g.exprs, "--" + padding, size);
+					else print_atom(down.down, padding, size);
 				}break;
 				
 				default: {
-					print_atom(node, padding);
+					print_atom(node, padding, size);
 				}break;						
 			}
 		}
 	}
 
-	public void Print()
+	public void Print(List<Expr> root_list)
 	{
 		Assert(root_list != null);
+
+		var size = MeasureSize(root_list);
 	
-		print(root_list, "");
+		print(root_list, "", size);
 	}
 
-	/// <summary> 
-	/// assumes the plainest cast whehe TeXRenderer is inialialized with the simple, empty ctor
-	/// sets the hlist as the root_list of the Notation
-	/// </summary>
-	public void TypesetRootHList(List<Expr> hlist, Vector2 pos)
-	{
-		Assert(hlist != null);
-		
-		Typeset(hlist, pos, 1f);
-
-		this.root_list = hlist;
-		is_typeset = true;		
-	}
-
-	/// <summary> assumes that the root_hlist is already set </summary>
-	public void TypesetRootHList(Vector2 root_pos)
-	{
-		Assert(root_list != null);
-		
-		Typeset(root_list, root_pos, 1f);
-
-		is_typeset = true;
-	}
 
 	// public void Typeset(List<Expr> nodes, Vector2 root_pos)
 	// {	
@@ -219,10 +181,11 @@ public class TeXRenderer : IDisposable
 	// 	is_typeset = true;
 	// }
 
-	private void Typeset(List<Expr> nodes, Vector2 pos, float scale) 
+	private void TypesetRec(List<Expr> nodes, Vector2 pos, float scale) 
 	{
 		var x = pos.X;
 		var y = pos.Y;
+		var offset = scale * default_size; 
 		var n = 0;
 		
 		// tranverse and set x, y, scale
@@ -242,16 +205,19 @@ public class TeXRenderer : IDisposable
 					id.Y = y;
 					id.W = paint.MeasureText(id.str);	
 					id.Scale = scale;
+
 					x += id.W;
-					// Console.WriteLine($"identifier {id.str} x: {id.X}, y: {id.Y}");
 				}break;
 				
 				case EMathOperator op: {
+					var w = paint.MeasureText(op.str);
+					x += w / 2f;
 					op.X = x;
 					op.Y = y;
-					op.W = paint.MeasureText(op.str);
+					op.W = w;
 					op.Scale = scale;
-					x += op.W;
+
+					x += op.W + w / 2f;
 				}break;
 				
 				case ESymbol symbol: {
@@ -259,58 +225,69 @@ public class TeXRenderer : IDisposable
 					symbol.Y = y;
 					symbol.W = paint.MeasureText(symbol.str);
 					symbol.Scale = scale;
+
 					x += symbol.W;
 				}break;
 				
 				case ESpace space: {
 					space.X = x;
 					space.Y = y;
+					// use same font as symbols - italics ??
 					space.W = paint.MeasureText(space.str);
 					space.Scale = scale;
-					x += space.W;
+
+					x += space.W + offset;
 				}break;
 				
-				case EBinary binary: {
+				case EBinary binary: {					
+					// a LOT trial and error on this part...
+					var upper = (EGrouped)(binary.lhs);
+					var lower = (EGrouped)(binary.rhs);
+
+					var upper_lvs = MeasureBinaryLevels(upper.exprs);
+					var lower_lvs = MeasureBinaryLevels(lower.exprs);
+					
+					TypesetRec(upper.exprs, new Vector2(x, y + default_size * scale * upper_lvs), scale);
+					TypesetRec(lower.exprs, new Vector2(x, y - default_size * scale * lower_lvs), scale);
+
+					var upper_size = MeasureSize(upper.exprs);
+					var lower_size = MeasureSize(lower.exprs);
+
 					binary.X = x;
 					binary.Y = y;
+					binary.W = Math.Max(upper_size.W - x, lower_size.W - x);
 					binary.Scale = scale;
-					
-					var upper = (EGrouped)(binary.lhs);
-					Typeset(upper.exprs, new Vector2(x, y - 12f), scale);
+					binary.RuleY = y + (scale * default_size / 4f);
 
-					var lower = (EGrouped)(binary.rhs);
-					Typeset(lower.exprs, new Vector2(x, y + 12f), scale);					
-
-					var upper_last = upper.exprs.Last();
-					var upper_w = upper_last.X + upper_last.W - x;
-					
-					var lower_last = lower.exprs.Last();
-					var lower_w = lower_last.X + lower_last.W - x;					
-
-					binary.W = Math.Max(upper_w, lower_w);
 					x += binary.W;
 				}break;
 				
-				case EGrouped g: {
-					g.X = x;
-					g.Y = y;				
-					g.Scale = scale;
-					
-					Typeset(g.exprs, new Vector2(x, y), scale);
-
+				case EGrouped g: {					
+					TypesetRec(g.exprs, new Vector2(x, y), scale);
 					var last = g.exprs.Last();
+
+					g.X = x;
+					g.Y = y;
 					g.W = last.X + last.W - x;
-					x += g.W;
+					x += g.W;  // offset
 				}break;
 				
 				case ESub sub: {
-					sub.X = x - 12f;
-					sub.Y = y - default_size;
+					throw new NotImplementedException();
+					// sub.X = x - default_size * scale;
+					// sub.Y = y - default_size * scale;
+					// sub.Scale = scale * 0.8f;
+					// sub.X = x - font_size * 0.75f;
+					// sub.Y = y - font_size;
 				}break;
 				
 				case ESuper super: {
-					super.X = x - 12f;					
-					super.Y = y + default_size;
+					throw new NotImplementedException();
+					// super.X = x - default_size * scale; 
+					// super.Y = y + default_size * scale;
+					// super.Scale = scale * 0.8f;
+					// super.X = x - font_size * 0.75f;
+					// super.Y = y + font_size;
 				}break;
 				
 				case ESubsup su: {
@@ -331,45 +308,47 @@ public class TeXRenderer : IDisposable
 				
 				case EUp up: {
 					if(up.up is EGrouped group) {
-						Typeset(group.exprs, new Vector2(x, y - (default_size / 4f)), 0.8f * scale);						
+						// Typeset(group.exprs, new Vector2(x, y - (default_size / 4f)), 0.8f * scale);		
+						var _scale = scale * 0.8f;
+						TypesetRec(group.exprs, new Vector2(x, y + (default_size * _scale)), _scale);		
 						
 						var last = group.exprs.Last();
 						x += last.X + last.W - x;
 					}
 					else {
-						var atom = up.up;
-						atom.X = x;
-						atom.Y = y - (default_size / 4f);
-						atom.Scale = 0.8f * scale;
-						atom.W = paint.MeasureText(atom.TeXStr);
-						x += atom.W;						
-					
-						up.X = atom.X;
-						up.Y = atom.Y;
-						up.W = atom.W;
-						up.Scale = atom.Scale;
+						up.up.X = x;
+						up.up.Y = y + offset / 2f;
+						up.up.W = paint.MeasureText(up.up.TeXStr);
+						up.up.Scale = scale * 0.8f;
+
+						x += up.up.W;
+
+						up.X = up.up.X;
+						up.Y = up.up.Y;
+						up.W = up.up.W;
+						up.Scale = up.up.Scale;
 					}
 				}break;
 				
 				case EDown down: {
 					if(down.down is EGrouped group) {
-						Typeset(group.exprs, new Vector2(x, y - (default_size / 4f)), 0.8f * scale);
+						TypesetRec(group.exprs, new Vector2(x, y - (default_size / 4f)), 0.8f * scale);
 
 						var last = group.exprs.Last();
 						x += last.X + last.W - x;
 					}
 					else {
-						var atom = down.down;
-						atom.X = x;
-						atom.Y = y + (default_size / 4f);
-						atom.Scale = 0.8f * scale;
-						atom.W = paint.MeasureText(atom.TeXStr);					
-						x += atom.W;						
+						down.down.X = x;
+						down.down.Y = y - offset / 2f;
+						down.down.W = paint.MeasureText(down.down.TeXStr);
+						down.down.Scale = scale * 0.8f;
 
-						down.X = atom.X;
-						down.Y = atom.Y;
-						down.W = atom.W;
-						down.Scale = atom.Scale;
+						x += down.down.W;
+
+						down.X = down.down.X;
+						down.Y = down.down.Y;
+						down.W = down.down.W;
+						down.Scale = down.down.Scale;
 					}
 				}break;
 				
@@ -406,68 +385,170 @@ public class TeXRenderer : IDisposable
 		n += 1;
 	}
 
-	void TypesetExpr() 
+
+	/// <summary> 
+	/// assumes the plainest cast whehe TeXRenderer is inialialized with the simple, empty ctor
+	/// sets the hlist as the root_list of the Notation
+	/// </summary>
+	public void Typeset(List<Expr> hlist)
 	{
-		
+		Assert(hlist != null);
+
+		var pos = new Vector2(default_size, default_size);
+		TypesetRec(hlist, pos, 1f);
+
+		is_typeset = true;		
+	}
+
+
+	private void MeasureSizeRec(List<Expr> hlist, ref HBox size)
+	{
+		foreach(var node in hlist) {
+			switch(node) {
+				case EBinary binary: {
+					var upper = (EGrouped)(binary.lhs);
+					MeasureSizeRec(upper.exprs, ref size);
+
+					var lower = (EGrouped)(binary.rhs);
+					MeasureSizeRec(lower.exprs, ref size);					
+				}break;
+
+				case EGrouped group: {
+					MeasureSizeRec(group.exprs, ref size);
+				}break;
+
+				case EUp up: {
+					if(up.up is EGrouped group) MeasureSizeRec(group.exprs, ref size);
+					else {
+						size.X = Math.Min(size.X, up.X);
+						size.Y = Math.Min(size.Y, up.Y);
+						size.W = Math.Max(size.W, up.X + up.W);
+						size.H = Math.Max(size.H, up.Y + up.W);
+					}
+				}break;
+
+				case EDown down: {
+					if(down.down is EGrouped group) MeasureSizeRec(group.exprs, ref size);
+					else {
+						size.X = Math.Min(size.X, down.X);
+						size.Y = Math.Min(size.Y, down.Y);
+						size.W = Math.Max(size.W, down.X + down.W);
+						size.H = Math.Max(size.H, down.Y + down.W);
+					}break;
+				}
+
+				default: {
+					size.X = Math.Min(size.X, node.X);
+					size.Y = Math.Min(size.Y, node.Y);
+					size.W = Math.Max(size.W, node.X + node.W);
+					size.H = Math.Max(size.H, node.Y + node.W);
+				}break;
+			}
+		}	
+	}
+
+	public HBox MeasureSize(List<Expr> hlist) 
+	{
+		var size = new HBox();
+
+		MeasureSizeRec(hlist, ref size);
+
+		return new HBox{
+			X = 0f,
+			Y = 0f,
+			W = Math.Abs(size.W - size.X),
+			H = Math.Abs(size.H - size.Y),
+			// Depth = 0f,
+		};
+	}
+
+	private void MeasureBinaryLevelsRec(List<Expr> hlist, ref int lv)
+	{
+		foreach(var node in hlist) {
+			if(node is EBinary binary) {
+				lv += 1;
+				var upper = (EGrouped)(binary.lhs);
+				MeasureBinaryLevelsRec(upper.exprs, ref lv);
+
+				var lower = (EGrouped)(binary.rhs);
+				MeasureBinaryLevelsRec(lower.exprs, ref lv);
+			}
+		}
+	}
+
+	public int MeasureBinaryLevels(List<Expr> hlist)
+	{
+		int lv = 1;
+		MeasureBinaryLevelsRec(hlist, ref lv);
+
+		return lv;
 	}
 
 	///<summary>must be used only on leaf-nodes expressions</summary>
-	private void RenderAtom(SKCanvas canvas, Expr atom)
+	private void RenderAtom(SKCanvas canvas, Expr atom, HBox size)
 	{
 		Assert(atom.IsLeafNode());
 		
 		var temp_size = paint.TextSize;
 		paint.TextSize *= atom.Scale;
 		var rendered = false;
+		var pt = Transform(atom.X, atom.Y, size);
 
 		foreach(var typeface in typefaces) {
 			if(typeface.ContainsGlyphs(atom.TeXStr)) {
 				paint.Typeface = typeface;
-				canvas.DrawText(atom.TeXStr, atom.X, atom.Y, paint);
+				canvas.DrawText(atom.TeXStr, pt.X, pt.Y, paint);
 				rendered = true;
 				break;
 			}
 		}
-		if(!rendered) canvas.DrawText(atom.TeXStr, atom.X, atom.Y, paint);
+		if(!rendered) canvas.DrawText(atom.TeXStr, pt.X, pt.Y, paint);
 		paint.TextSize = temp_size;		
 		paint.Typeface = typeface;
 	}
 
-	private void RenderHList(SKCanvas canvas, List<Expr> hlist)
+	private void RenderHList(SKCanvas canvas, List<Expr> hlist, HBox size)
 	{
 		foreach(var node in hlist) {
 			switch(node) {
 				case EBinary binary: {
 					var upper = (EGrouped)(binary.lhs);
-					RenderHList(canvas, upper.exprs);
+					RenderHList(canvas, upper.exprs, size);
 
 					var lower = (EGrouped)(binary.rhs);
-					RenderHList(canvas, lower.exprs);
+					RenderHList(canvas, lower.exprs, size);
 
-					var y = (binary.Scale * font_size) / 4f;
-					var p0 = new SKPoint{X = binary.X, Y = binary.Y  - y};
-					var p1 = new SKPoint{X = binary.X + binary.W, Y = binary.Y - y};
+					// var y = binary.Scale * default_size / 4f;
+					// var p0 = Transform(binary.X, binary.Y + y, size);
+					// var p1 = Transform(binary.X + binary.W, binary.Y + y, size);
+					var p0 = Transform(binary.X, binary.RuleY, size);
+					var p1 = Transform(binary.X + binary.W, binary.RuleY, size);
+					Console.WriteLine($"line: {p0.X}, {p1.X}, {p1.Y}");
+
+					// var y0 = binary.Y + (binary.Scale * font_size) / 4f;
+					// var p0 = new SKPoint{X = binary.X, Y = binary.Y  - y};
+					// var p1 = new SKPoint{X = binary.X + binary.W, Y = binary.Y - y};
 					canvas.DrawLine(p0, p1, paint);
 				}break;
 				
 				case EGrouped group: {
-					RenderHList(canvas, group.exprs);
+					RenderHList(canvas, group.exprs, size);
 				}break;
 				
 				case EUp up: {
 					// Console.WriteLine("up.up = {0}", up.up.Str);
-					if(up.up is EGrouped group)	RenderHList(canvas, group.exprs);
-					else RenderAtom(canvas, up.up);					
+					if(up.up is EGrouped group)	RenderHList(canvas, group.exprs, size);
+					else RenderAtom(canvas, up.up, size);	
 				}break;
 				 				
 				case EDown down: {
 					// Console.WriteLine("down.down = {0}", down.down.Str);
-					if(down.down is EGrouped group) RenderHList(canvas, group.exprs);
-					else RenderAtom(canvas, down.down);
+					if(down.down is EGrouped group) RenderHList(canvas, group.exprs, size);
+					else RenderAtom(canvas, down.down, size);
 				}break;			
 
 				default: {
-					RenderAtom(canvas, node);
+					RenderAtom(canvas, node, size);
 				}break;
 			}			
 		}
@@ -475,17 +556,23 @@ public class TeXRenderer : IDisposable
 
 
 	/// <summary>copy a .png encoded image of the notation to dest_stream</summary>
-	public void Render(Stream dest_stream)
+	public void Render(Stream dest_stream, List<Expr> hlist)
 	{
 		Assert(dest_stream != null);
-		Assert(root_list != null);
+		Assert(hlist != null);
 		Assert(is_typeset);
 
 	    // set up drawing tools		
-		var canvas = surface.Canvas;		
-		canvas.Clear();
-		RenderHList(canvas, root_list);
+
+		var size = MeasureSize(hlist);
+		var width = (int)(size.W + 2f * default_size);
+		var height = (int)(size.H + 2f * default_size);
 		
+		var info = new SKImageInfo(width, height);
+		using var surface = SKSurface.Create(info);		
+		var canvas = surface.Canvas;		
+		
+		RenderHList(canvas, hlist, size);
 		using (var image = surface.Snapshot())
 		using (var data = image.Encode(SKEncodedImageFormat.Png, 80))
 		{
@@ -494,14 +581,20 @@ public class TeXRenderer : IDisposable
 	}
 
 	///<summary>returns the snapshot of the surface that contains the notation</summary>
-	public SKImage SnapshotNotationImg()
+	public SKImage SnapshotNotationImg(List<Expr> hlist)
 	{
-		Assert(root_list != null);
+		Assert(hlist != null);
 		Assert(is_typeset);
 
+		var size = MeasureSize(hlist);
+		var width = (int)(size.W + 2f * default_size);
+		var height = (int)(size.H + 2f * default_size);
+		
+		var info = new SKImageInfo(width, height);
+		using var surface = SKSurface.Create(info);		
 		var canvas = surface.Canvas;
-		canvas.Clear();
-		RenderHList(canvas, root_list);
+				
+		RenderHList(canvas, hlist, size);
 
 		return surface.Snapshot();
 	}

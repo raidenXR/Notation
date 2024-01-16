@@ -251,10 +251,10 @@ public class Lexer
 
 
 		switch(Current) {
+			case '=':
 			case '+':
 			case '-':
 			case '*':
-			case '=':
 			case '/': {
 				Advance();
 				return new Token(pos, src[start..pos], TokenId.MathOperator);
@@ -461,9 +461,12 @@ public class Lexer
 
 	
 	public static Dictionary<string, Func<Expr>> symbols = new(300){
-		{"+", () => new ESymbol(Bin, "+")},
-		{"-", () => new ESymbol(Bin, "-")},
-		{"*", () => new ESymbol(Bin, "*")},
+		{"=", () => new EMathOperator("=")},
+		{"+", () => new EMathOperator("+")},
+		{"-", () => new EMathOperator("-")},
+		{"*", () => new EMathOperator("*")},
+		{"/", () => new EMathOperator("/")},
+		{"\\cdot", () => new EMathOperator("\x22C5")},
 		{",", () => new ESymbol(Pun, ",")},
 		{".", () => new ESymbol(Pun, ".")},
 		{";", () => new ESymbol(Pun, ";")},
@@ -476,12 +479,10 @@ public class Lexer
 		{"''", () => new ESymbol(Ord, "\x02BA")},
 		{"'''", () => new ESymbol(Ord, "\x2034")},
 		{"''''", () => new ESymbol(Ord, "\x2057")},
-		{"=", () => new ESymbol(Rel, "=")},
 		{":=", () => new ESymbol(Rel, ":=")},
 		{"\\mid", () => new ESymbol(Bin, "\x2223")},
 		{"\\parallel", () => new ESymbol(Rel, "\x2225")},
 		{"\\backslash", () => new ESymbol(Bin, "\x2216")},
-		{"/", () => new ESymbol(Bin, "/")},
 		// {"\\setminus",	() => new ESymbol(Bin, "\\")},
 		// {"\\times", () => new ESymbol(Bin, "\x00D7")},
 		{"\\alpha", () => new ESymbol(Ord, "\x03B1")},
@@ -539,7 +540,7 @@ public class Lexer
 		{"\\mp", () => new ESymbol(Bin, "\x2213")},
 		{"\\triangleleft", () => new ESymbol(Bin, "\x22B2")},
 		{"\\triangleright", () => new ESymbol(Bin, "\x22B3")},
-		{"\\cdot", () => new ESymbol(Bin, "\x22C5")},
+		// {"\\cdot", () => new ESymbol(Bin, "\x22C5")},
 		{"\\star", () => new ESymbol(Bin, "\x22C6")},
 		{"\\ast", () => new ESymbol(Bin, "\x002A")},
 		{"\\times", () => new ESymbol(Bin, "\x00D7")},

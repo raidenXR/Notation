@@ -239,6 +239,7 @@ public class EBinary : Expr {
 	public string str;
 	public Expr lhs;
 	public Expr rhs;
+	public float RuleY;
 }
 
 public class ESub : Expr {
