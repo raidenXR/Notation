@@ -48,16 +48,18 @@ public partial class MainWindow : Window
             memory_stream.Position = 0;
 
             var parser = new Parser(input_box.Text);
-            var hlist0 = parser.Parse().ToList();            
+            var hlist = parser.Parse().ToList();            
 
-            using var renderer = new TeXRenderer(hlist0, 20f);
-            renderer.TypesetRootHList(new System.Numerics.Vector2(30f, 30f));	
-            renderer.Print();	
-            renderer.Render(memory_stream);
+            using var renderer = new TeXRenderer(20f);
+            renderer.Typeset(hlist);	
+            renderer.Print(hlist);	
+            renderer.Render(memory_stream, hlist);
 
             // Typesetting.NotationSample(input_box.Text!, memory_stream);
             memory_stream.Position = 0;
             img_control.Source = new Bitmap(memory_stream);
+
+            latex_block.Text = input_box.Text;
         }
     }    
     

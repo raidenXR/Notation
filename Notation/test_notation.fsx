@@ -18,6 +18,7 @@ let functions = [
     "z(x) = 3.2343 e^{-1.2} + 8.5"
     "a(x) = \\frac{Z - 9.2 + A^2}{e^{0.8}} + \\frac{x^2 + 2 * x + 1}{x^3 - 1}"
     @"f(x) = \frac{R_{\epsilon} + A_1 - -\frac{\frac{C_{\gamma}}{C_B}}{C_C + \frac{(C_{\alpha}) + C_{\alpha}}{C_a}} - R_{\epsilon}}{C_{\beta} - 3.738} / (A_e)"
+    @"f(x) = \frac{\frac{1}{2}}{e + \frac{A}{\frac{(e + 2)}{G - \gamma}}}"
 ]
 
 let [<Literal>] dir_name = "notation_images"

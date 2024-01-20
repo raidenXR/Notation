@@ -31,9 +31,10 @@ public abstract class Expr {
 	public float W;
 	public float H;
 	public float Scale = 1f;
-	public HBox box;
-	public Glue glue;
+	public int Depth = 0;
 	public Token token;
+	// public HBox box;
+	// public Glue glue;
 
 	// public IEnumerable<Expr>? Children {
 	// 	get {

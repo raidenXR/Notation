@@ -29,12 +29,16 @@
                     DockPanel.Dock="Top" /  -->
 
                 <StackPanel DockPanel.Dock="Bottom">
-                    <Image x:Name="img_control"  Height="70" Width="420" />
+                    <!-- Image x:Name="img_control"  Height="70" Width="420" /  -->
+
+                    <SelectableTextBlock Name="latex_block" 
+                        MaxWidth="500" 
+                        Margin="0,15,0,30"
+                        TextWrapping="WrapWithOverflow" />
 
                     <Image 
-                        Width="420" 
-                        Height="70" 
-                        Source="{Binding #input_box.Text, Converter={StaticResource TexConverter}}"
+                        Name="img_control"
+                        Stretch="None"                        
                         />
                 
                 

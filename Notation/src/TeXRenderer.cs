@@ -27,6 +27,8 @@ public readonly struct Origin
 
 public class TeXRenderer : IDisposable
 {	
+	float default_size;
+
 	readonly float  font_size;
 	bool is_typeset;
 	bool is_disposed;
@@ -77,7 +79,6 @@ public class TeXRenderer : IDisposable
 	// 	}
 	// }
 
-	float default_size;
 
 	static TeXRenderer()
 	{
@@ -186,7 +187,6 @@ public class TeXRenderer : IDisposable
 		var x = pos.X;
 		var y = pos.Y;
 		var offset = scale * default_size; 
-		var n = 0;
 		
 		// tranverse and set x, y, scale
 		foreach(var node in nodes) {
@@ -195,6 +195,7 @@ public class TeXRenderer : IDisposable
 					number.X = x;
 					number.Y = y;
 					number.W = paint.MeasureText(number.str);
+					number.H = scale * default_size;
 					number.Scale = scale;
 					x += number.W;
 					// Console.WriteLine($"number {number.str} x: {number.X}, y: {number.Y}");
@@ -203,7 +204,8 @@ public class TeXRenderer : IDisposable
 				case EIdentifier id: {
 					id.X = x;
 					id.Y = y;
-					id.W = paint.MeasureText(id.str);	
+					id.W = paint.MeasureText(id.str);
+					id.H = scale * default_size;	
 					id.Scale = scale;
 
 					x += id.W;
@@ -215,6 +217,7 @@ public class TeXRenderer : IDisposable
 					op.X = x;
 					op.Y = y;
 					op.W = w;
+					op.H = scale * default_size;
 					op.Scale = scale;
 
 					x += op.W + w / 2f;
@@ -224,6 +227,7 @@ public class TeXRenderer : IDisposable
 					symbol.X = x;
 					symbol.Y = y;
 					symbol.W = paint.MeasureText(symbol.str);
+					symbol.H = scale * default_size;
 					symbol.Scale = scale;
 
 					x += symbol.W;
@@ -232,8 +236,8 @@ public class TeXRenderer : IDisposable
 				case ESpace space: {
 					space.X = x;
 					space.Y = y;
-					// use same font as symbols - italics ??
 					space.W = paint.MeasureText(space.str);
+					space.H = scale * default_size;
 					space.Scale = scale;
 
 					x += space.W + offset;
@@ -244,145 +248,89 @@ public class TeXRenderer : IDisposable
 					var upper = (EGrouped)(binary.lhs);
 					var lower = (EGrouped)(binary.rhs);
 
-					var upper_lvs = MeasureBinaryLevels(upper.exprs);
-					var lower_lvs = MeasureBinaryLevels(lower.exprs);
-					
-					TypesetRec(upper.exprs, new Vector2(x, y + default_size * scale * upper_lvs), scale);
-					TypesetRec(lower.exprs, new Vector2(x, y - default_size * scale * lower_lvs), scale);
+					var upper_size = MeasureSizeAbs(upper.exprs, x, y, scale);
+					var lower_size = MeasureSizeAbs(lower.exprs, x, y, scale);
 
-					var upper_size = MeasureSize(upper.exprs);
-					var lower_size = MeasureSize(lower.exprs);
+					var upper_w = upper_size.W - upper_size.X;
+					var upper_h = upper_size.H - upper_size.Y;
+					var lower_w = lower_size.W - lower_size.X;
+					var lower_h = lower_size.H - lower_size.Y;
+					var width = Math.Max(upper_w, lower_w);
+				
+					var upper_x = (upper_w < 0.9 * width) ? (x + (width - upper_w) / 2f) : x;
+					var lower_x = (lower_w < 0.9 * width) ? (x + (width - lower_w) / 2f) : x;
+
+					var upper_y = y + (y - upper_size.Y) + 4f;   // small offset
+					var lower_y = y - (lower_size.H - y) - 4f;  // small offset
+					
+					TypesetRec(upper.exprs, new Vector2(upper_x, upper_y), scale);
+					TypesetRec(lower.exprs, new Vector2(lower_x, lower_y), scale);
 
 					binary.X = x;
 					binary.Y = y;
-					binary.W = Math.Max(upper_size.W - x, lower_size.W - x);
+					binary.W = width;
+					binary.H = upper_h + lower_h + 8f;  // small offset
 					binary.Scale = scale;
-					binary.RuleY = y + (scale * default_size / 4f);
+					binary.RuleY = y;
 
 					x += binary.W;
 				}break;
 				
 				case EGrouped g: {					
 					TypesetRec(g.exprs, new Vector2(x, y), scale);
-					var last = g.exprs.Last();
+					// var size = MeasureSize(g.exprs);
 
 					g.X = x;
 					g.Y = y;
-					g.W = last.X + last.W - x;
-					x += g.W;  // offset
-				}break;
+					// g.W = size.W;
+					// g.H = size.H;
+					g.Scale = scale;
+					// x += g.W;  // offset
+				}break;				
 				
-				case ESub sub: {
-					throw new NotImplementedException();
-					// sub.X = x - default_size * scale;
-					// sub.Y = y - default_size * scale;
-					// sub.Scale = scale * 0.8f;
-					// sub.X = x - font_size * 0.75f;
-					// sub.Y = y - font_size;
-				}break;
-				
-				case ESuper super: {
-					throw new NotImplementedException();
-					// super.X = x - default_size * scale; 
-					// super.Y = y + default_size * scale;
-					// super.Scale = scale * 0.8f;
-					// super.X = x - font_size * 0.75f;
-					// super.Y = y + font_size;
-				}break;
-				
-				case ESubsup su: {
-					
-				}break;
-				
-				case EOver over: {
-					
-				}break;
-				
-				case EUnder under: {
-					
-				}break;
-				
-				case EUnderover uo: {
-					
-				}break;
-				
-				case EUp up: {
-					if(up.up is EGrouped group) {
-						// Typeset(group.exprs, new Vector2(x, y - (default_size / 4f)), 0.8f * scale);		
-						var _scale = scale * 0.8f;
-						TypesetRec(group.exprs, new Vector2(x, y + (default_size * _scale)), _scale);		
-						
-						var last = group.exprs.Last();
-						x += last.X + last.W - x;
+				case EUp e: {
+					if(e.up is EGrouped group) {
+						TypesetRec(group.exprs, new Vector2(x, y + offset / 2f), scale * 0.8f);
+						var size = MeasureSize(group.exprs);
+
+						x = size.W;
 					}
 					else {
-						up.up.X = x;
-						up.up.Y = y + offset / 2f;
-						up.up.W = paint.MeasureText(up.up.TeXStr);
-						up.up.Scale = scale * 0.8f;
+						var w = paint.MeasureText(e.up.TeXStr) + 3f;
+						e.up.X = x;
+						e.up.Y = y + offset / 2f;
+						e.up.W = w;
+						e.up.H = scale * default_size;
+						e.up.Scale = scale * 0.8f;
 
-						x += up.up.W;
-
-						up.X = up.up.X;
-						up.Y = up.up.Y;
-						up.W = up.up.W;
-						up.Scale = up.up.Scale;
+						x += w;
 					}
 				}break;
 				
-				case EDown down: {
-					if(down.down is EGrouped group) {
-						TypesetRec(group.exprs, new Vector2(x, y - (default_size / 4f)), 0.8f * scale);
+				case EDown e: {
+					if(e.down is EGrouped group) {
+						TypesetRec(group.exprs, new Vector2(x, y - offset / 2f), scale * 0.8f);		
+						var size = MeasureSize(group.exprs);
 
-						var last = group.exprs.Last();
-						x += last.X + last.W - x;
+						x = size.W;
 					}
 					else {
-						down.down.X = x;
-						down.down.Y = y - offset / 2f;
-						down.down.W = paint.MeasureText(down.down.TeXStr);
-						down.down.Scale = scale * 0.8f;
+						var w = paint.MeasureText(e.down.TeXStr) + 3f;
+						e.down.X = x;
+						e.down.Y = y - offset / 2f;
+						e.down.W = w;
+						e.down.H = scale * default_size;
+						e.down.Scale = scale * 0.8f;
 
-						x += down.down.W;
-
-						down.X = down.down.X;
-						down.Y = down.down.Y;
-						down.W = down.down.W;
-						down.Scale = down.down.Scale;
+						x += w;
 					}
-				}break;
-				
-				case EDownUp du: {
-					
-				}break;
-				
-				case EUnary unary: {
-					
-				}break;
-				
-				case EScaled scaled: {
-					var next_node = nodes[n + 1];
-					next_node.Scale *= scaled.scale;
-				}break;
-				
-				case EStretchy stretchy: {
-					
-				}break;
-				
-				case EArray array: {
-					
-				}break;
-				
-				case EText text: {
-					
 				}break;
 				
 				default: {
-					throw new ArgumentException($"not implementing {node.ToString()}");					
+					throw new NotImplementedException($"{node.GetType().ToString()} not implemented");
 				};
 			} 
 		}	
-		n += 1;
 	}
 
 
@@ -417,23 +365,23 @@ public class TeXRenderer : IDisposable
 					MeasureSizeRec(group.exprs, ref size);
 				}break;
 
-				case EUp up: {
-					if(up.up is EGrouped group) MeasureSizeRec(group.exprs, ref size);
+				case EUp e: {
+					if(e.up is EGrouped group) MeasureSizeRec(group.exprs, ref size);
 					else {
-						size.X = Math.Min(size.X, up.X);
-						size.Y = Math.Min(size.Y, up.Y);
-						size.W = Math.Max(size.W, up.X + up.W);
-						size.H = Math.Max(size.H, up.Y + up.W);
+						size.X = Math.Min(size.X, e.up.X);
+						size.Y = Math.Min(size.Y, e.up.Y);
+						size.W = Math.Max(size.W, e.up.X + e.up.W);
+						size.H = Math.Max(size.H, e.up.Y + e.up.H);
 					}
 				}break;
 
-				case EDown down: {
-					if(down.down is EGrouped group) MeasureSizeRec(group.exprs, ref size);
+				case EDown e: {
+					if(e.down is EGrouped group) MeasureSizeRec(group.exprs, ref size);
 					else {
-						size.X = Math.Min(size.X, down.X);
-						size.Y = Math.Min(size.Y, down.Y);
-						size.W = Math.Max(size.W, down.X + down.W);
-						size.H = Math.Max(size.H, down.Y + down.W);
+						size.X = Math.Min(size.X, e.down.X);
+						size.Y = Math.Min(size.Y, e.down.Y);
+						size.W = Math.Max(size.W, e.down.X + e.down.W);
+						size.H = Math.Max(size.H, e.down.Y + e.down.H);
 					}break;
 				}
 
@@ -441,7 +389,7 @@ public class TeXRenderer : IDisposable
 					size.X = Math.Min(size.X, node.X);
 					size.Y = Math.Min(size.Y, node.Y);
 					size.W = Math.Max(size.W, node.X + node.W);
-					size.H = Math.Max(size.H, node.Y + node.W);
+					size.H = Math.Max(size.H, node.Y + node.H);
 				}break;
 			}
 		}	
@@ -458,15 +406,34 @@ public class TeXRenderer : IDisposable
 			Y = 0f,
 			W = Math.Abs(size.W - size.X),
 			H = Math.Abs(size.H - size.Y),
-			// Depth = 0f,
 		};
 	}
+
+	///<summary>returns the the xmin, ymin, xmax, ymax as a HBox</summary>
+	public HBox MeasureSizeAbs(List<Expr> hlist, float x, float y, float scale)
+	{
+		var size = new HBox{X = x, Y = y};
+
+		TypesetRec(hlist, new Vector2(x, y), scale);
+		MeasureSizeRec(hlist, ref size);
+
+		return size;
+	}
+
+	// Typeset hlist, with no x, y offset, in order to get the W, H
+	// public HBox MeasureSizeFromOrigin(List<Expr> hlist, float scale)
+	// {
+	// 	TypesetRec(hlist, Vector2.Zero, scale);
+	// 	var size = MeasureSize(hlist);
+
+	// 	return size;		
+	// }
 
 	private void MeasureBinaryLevelsRec(List<Expr> hlist, ref int lv)
 	{
 		foreach(var node in hlist) {
 			if(node is EBinary binary) {
-				lv += 1;
+				lv += 2;
 				var upper = (EGrouped)(binary.lhs);
 				MeasureBinaryLevelsRec(upper.exprs, ref lv);
 
@@ -562,11 +529,12 @@ public class TeXRenderer : IDisposable
 		Assert(hlist != null);
 		Assert(is_typeset);
 
-	    // set up drawing tools		
+		var size = MeasureSizeAbs(hlist, 0f, 0f, 1f);
+		var width = (int)(size.W - size.X + default_size);
+		var height = (int)(size.H - size.Y + default_size);
 
-		var size = MeasureSize(hlist);
-		var width = (int)(size.W + 2f * default_size);
-		var height = (int)(size.H + 2f * default_size);
+		//offset +Ymin
+		TypesetRec(hlist, new Vector2(0, Math.Abs(size.Y)), 1f);
 		
 		var info = new SKImageInfo(width, height);
 		using var surface = SKSurface.Create(info);		
